@@ -1,0 +1,394 @@
+#創建model資料夾，先將此檔案放入model資料夾
+
+#連接雲端
+from google.colab import drive
+drive.mount('/content/gdrive')
+----------------------------------------------------------------------------------------------------------------------
+#下載模型
+!cd /content/gdrive/MyDrive/model; wget https://civitai.com/api/download/models/11745 --content-disposition
+----------------------------------------------------------------------------------------------------------------------
+#@markdown # Connect Google Drive
+from google.colab import drive
+from IPython.display import clear_output
+import ipywidgets as widgets
+import os
+
+def inf(msg, style, wdth): inf = widgets.Button(description=msg, disabled=True, button_style=style, layout=widgets.Layout(min_width=wdth));display(inf)
+Shared_Drive = "" #@param {type:"string"}
+#@markdown - Leave empty if you're not using a shared drive
+
+print("[0;33mConnecting...")
+drive.mount('/content/gdrive')
+
+if Shared_Drive!="" and os.path.exists("/content/gdrive/Shareddrives"):
+  mainpth="Shareddrives/"+Shared_Drive 
+else:
+  mainpth="MyDrive"
+
+clear_output()
+inf('\u2714 Done','success', '50px')
+----------------------------------------------------------------------------------------------------------------------
+#安裝指令
+from IPython.utils import capture
+from IPython.display import clear_output
+from subprocess import getoutput
+import ipywidgets as widgets
+import sys
+import fileinput
+import os
+import time
+import base64
+
+Use_Latest_Working_Commit= False #@param {type:"boolean"}
+
+#@markdown - Use the pre-major A1111 update commit to avoid bugs while the repo is fixed
+
+blasphemy=base64.b64decode(("d2VidWk=").encode('ascii')).decode('ascii')
+
+if not os.path.exists("/content/gdrive"):
+  print('[1;31mGdrive not connected, using colab storage ...')
+  time.sleep(4)
+  mainpth="MyDrive"
+  !mkdir -p /content/gdrive/$mainpth
+  Shared_Drive=""
+  
+if Shared_Drive!="" and not os.path.exists("/content/gdrive/Shareddrives"):
+  print('[1;31mShared drive not detected, using default MyDrive')
+  mainpth="MyDrive"
+
+with capture.capture_output() as cap:
+  def inf(msg, style, wdth): inf = widgets.Button(description=msg, disabled=True, button_style=style, layout=widgets.Layout(min_width=wdth));display(inf)
+  fgitclone = "git clone --depth 1"
+  %mkdir -p /content/gdrive/$mainpth/sd
+  %cd /content/gdrive/$mainpth/sd
+  !git clone -q --branch master https://github.com/AUTOMATIC1111/stable-diffusion-$blasphemy
+  !mkdir -p /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/cache/
+  os.environ['TRANSFORMERS_CACHE']=f"/content/gdrive/{mainpth}/sd/stable-diffusion-"+blasphemy+"/cache"
+
+with capture.capture_output() as cap:
+  %cd /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/
+  !git reset --hard
+  time.sleep(1)
+  !rm webui.sh
+  !git pull
+  if Use_Latest_Working_Commit:
+    !git fetch --unshallow
+    !git checkout a9eab236d7e8afa4d6205127904a385b2c43bb24
+    !pip install gradio==3.16.2 --no-deps -qq
+  else:
+    !pip install gradio==3.23 --no-deps -qq
+clear_output()
+inf('\u2714 Done','success', '50px')
+----------------------------------------------------------------------------------------------------------------------
+print('[1;32mInstalling requirements...')
+
+with capture.capture_output() as cap:
+  %cd /content/ 
+  !wget -q -i https://raw.githubusercontent.com/TheLastBen/fast-stable-diffusion/main/Dependencies/A1111.txt
+  !dpkg -i *.deb
+  if not os.path.exists('/content/gdrive/'+mainpth+'/sd/stablediffusion'):
+    !tar -C /content/gdrive/$mainpth --zstd -xf sd_rep.tar.zst
+  !tar -C / --zstd -xf gcolabdeps.tar.zst
+  !rm *.deb | rm *.zst | rm *.txt
+  !wget -q -O /usr/local/lib/python3.9/dist-packages/flax/core/frozen_dict.py  https://github.com/TheLastBen/fast-stable-diffusion/raw/main/AUTOMATIC1111_files/frozen_dict.py
+  %env LD_PRELOAD=libtcmalloc.so
+  os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+  os.environ['PYTHONWARNINGS'] = 'ignore'
+  if Use_Latest_Working_Commit:
+    !pip install gradio==3.16.2 --no-deps -qq
+  else:
+    !pip install gradio==3.23 --no-deps -qq
+
+clear_output()
+inf('\u2714 Done','success', '50px')
+----------------------------------------------------------------------------------------------------------------------
+#修改路徑
+#將此資料夾(model)的雲端路徑複製到Path_to_MODEL
+
+Model_Version = "1.5" #@param [ "1.5", "v1.5 Inpainting ", "V2.1-512px", "V2.1-768px"]
+
+Redownload_the_original_model = False #@param {type:"boolean"}
+
+def rmv():
+  !wget -q -O /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/models/Stable-diffusion/model.ckpt https://raw.githubusercontent.com/TheLastBen/fast-stable-diffusion/main/precompiled/README.md
+  !mv /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/models/Stable-diffusion/model.ckpt /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/models/Stable-diffusion/trashfile.f
+  time.sleep(2)
+  !rm /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/models/Stable-diffusion/trashfile.f
+  clear_output()
+
+if Redownload_the_original_model:
+  with capture.capture_output() as cap:
+    rmv()
+
+#@markdown Or
+Path_to_MODEL = "/content/gdrive/MyDrive/model" #@param {type:"string"}
+#@markdown - Insert the full path of your trained model or to a folder containing multiple models
+
+#@markdown Or
+MODEL_LINK = "" #@param {type:"string"}
+safetensors = False #@param {type:"boolean"}
+Use_temp_storage = False #@param {type:"boolean"}
+
+
+
+def newmdl():
+
+    if not os.path.exists('/content/gdrive/'+mainpth+'/sd/stable-diffusion-'+blasphemy+'/models/Stable-diffusion/model.ckpt'):
+      %cd /content/
+      clear_output()
+      !git init
+      !git lfs install --system --skip-repo
+      !$fgitclone --branch fp16 "https://huggingface.co/runwayml/stable-diffusion-v1-5"
+      if os.path.exists('/content/stable-diffusion-v1-5/unet/diffusion_pytorch_model.bin'):
+        !wget -q -O stable-diffusion-v1-5/vae/diffusion_pytorch_model.bin https://huggingface.co/stabilityai/sd-vae-ft-mse/resolve/main/diffusion_pytorch_model.bin
+        !wget -q -O convertosd.py https://github.com/TheLastBen/fast-stable-diffusion/raw/main/Dreambooth/convertosd.py
+        !sed -i '201s@.*@    model_path = "/content/stable-diffusion-v1-5"@' /content/convertosd.py
+        !sed -i '202s@.*@    checkpoint_path= "/content/gdrive/{mainpth}/sd/stable-diffusion-{blasphemy}/models/Stable-diffusion/model.ckpt"@' /content/convertosd.py
+        clear_output()       
+        !python /content/convertosd.py
+        !rm /content/convertosd.py
+        if os.path.exists('/content/gdrive/'+mainpth+'/sd/stable-diffusion-'+blasphemy+'/models/Stable-diffusion/model.ckpt'):
+          model='/content/gdrive/'+mainpth+'/sd/stable-diffusion-'+blasphemy+'/models/Stable-diffusion/model.ckpt'
+          clear_output()
+          inf('\u2714 Done','success', '50px')
+        else:
+          inf('\u2718 Something went wrong, try again','danger', "250px")
+      else:
+        inf('\u2718 Something went wrong','danger', "200px")
+
+    else:
+      model='/content/gdrive/'+mainpth+'/sd/stable-diffusion-'+blasphemy+'/models/Stable-diffusion/model.ckpt'
+      clear_output()
+      inf('\u2714 Model already exists, check the box "Redownload_the_original_model" to redownload/download the V1.5','primary', '700px')
+
+    if os.path.exists('/content/.git'):
+      !rm -r /content/.git
+
+    if os.path.exists('/content/stable-diffusion-v1-5'):
+      !rm -r /content/stable-diffusion-v1-5
+
+    return model
+
+def V2():
+
+    if not os.path.exists('/content/gdrive/'+mainpth+'/sd/stable-diffusion-'+blasphemy+'/models/Stable-diffusion/model.ckpt'):
+      %cd /content/
+      clear_output()
+      !mkdir "/content/stable-diffusion-V2"
+      %cd "/content/stable-diffusion-V2"
+      !git init
+      !git lfs install --system --skip-repo
+      if Model_Version == "V2.1-768px":
+        !git remote add -f origin  "https://huggingface.co/stabilityai/stable-diffusion-2-1"
+      elif Model_Version == "V2.1-512px":
+        !git remote add -f origin  "https://huggingface.co/stabilityai/stable-diffusion-2-1-base"
+      !git config core.sparsecheckout true
+      !echo -e "scheduler\ntext_encoder\ntokenizer\nunet\nvae\nfeature_extractor\nmodel_index.json\n!*.safetensors" > .git/info/sparse-checkout
+      !git pull origin fp16
+      %cd /content
+      !wget -O convertosdv2.py https://github.com/TheLastBen/fast-stable-diffusion/raw/main/Dreambooth/convertosdv2.py
+      clear_output()
+      !python /content/convertosdv2.py --fp16 /content/stable-diffusion-V2 /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/models/Stable-diffusion/model.ckpt
+      !rm /content/convertosdv2.py
+      if os.path.exists('/content/gdrive/'+mainpth+'/sd/stable-diffusion-'+blasphemy+'/models/Stable-diffusion/model.ckpt'):
+        model='/content/gdrive/'+mainpth+'/sd/stable-diffusion-'+blasphemy+'/models/Stable-diffusion/model.ckpt'
+        clear_output()
+        inf('\u2714 Done','success', '50px')
+      else:
+        inf('\u2718 Something went wrong, try again','danger', "250px")
+
+    else:
+      model='/content/gdrive/'+mainpth+'/sd/stable-diffusion-'+blasphemy+'/models/Stable-diffusion/model.ckpt'
+      clear_output()
+      inf('\u2714 Model already exists, check the box "Redownload_the_original_model" to redownload/download the V2','primary', '700px')
+
+    if os.path.exists('/content/.git'):
+      !rm -r /content/.git
+      !rm -r /content/convertosdv2.py
+    if os.path.exists('/content/stable-diffusion-V2'):
+      !rm -r /content/stable-diffusion-V2
+
+    return model
+
+def inpmdl():
+
+    if not os.path.exists('/content/gdrive/'+mainpth+'/sd/stable-diffusion-'+blasphemy+'/models/Stable-diffusion/sd-v1-5-inpainting.ckpt'):
+      %cd /content/
+      clear_output()
+      !git init
+      !git lfs install --system --skip-repo
+      !$fgitclone --branch fp16 "https://huggingface.co/runwayml/stable-diffusion-inpainting"
+      if os.path.exists('/content/stable-diffusion-inpainting'):
+        !$fgitclone "https://huggingface.co/stabilityai/sd-vae-ft-mse"
+        !rm -r /content/stable-diffusion-inpainting/vae
+        !mv /content/sd-vae-ft-mse /content/stable-diffusion-inpainting/vae        
+        !wget -O convertosd.py https://github.com/TheLastBen/fast-stable-diffusion/raw/main/Dreambooth/convertosd.py
+        !sed -i '201s@.*@    model_path = "/content/stable-diffusion-inpainting"@' /content/convertosd.py
+        !sed -i '202s@.*@    checkpoint_path= "/content/gdrive/{mainpth}/sd/stable-diffusion-{blasphemy}/models/Stable-diffusion/sd-v1-5-inpainting.ckpt"@' /content/convertosd.py
+        clear_output()       
+        !python /content/convertosd.py
+        !rm /content/convertosd.py
+        if os.path.exists('/content/gdrive/'+mainpth+'/sd/stable-diffusion-'+blasphemy+'/models/Stable-diffusion/sd-v1-5-inpainting.ckpt'):
+          model='/content/gdrive/'+mainpth+'/sd/stable-diffusion-'+blasphemy+'/models/Stable-diffusion/sd-v1-5-inpainting.ckpt'
+          clear_output()
+          inf('\u2714 Done','success', '50px')
+        else:
+          inf('\u2718 Something went wrong, try again','danger', "250px")
+      else:
+        inf('\u2718 Something went wrong','danger', "200px")
+
+
+    else:
+      model='/content/gdrive/'+mainpth+'/sd/stable-diffusion-'+blasphemy+'/models/Stable-diffusion/sd-v1-5-inpainting.ckpt'
+      clear_output()
+      inf('\u2714 inpainting model already exists','primary', '250px')
+
+    if os.path.exists('/content/.git'):
+      !rm -r /content/.git
+
+    if os.path.exists('/content/stable-diffusion-inpainting'):
+      !rm -r /content/stable-diffusion-inpainting
+
+    return model
+
+if (Path_to_MODEL !=''):
+  if os.path.exists(str(Path_to_MODEL)):
+    inf('\u2714 Using the trained model.','success', '200px')
+
+  else:
+      while not os.path.exists(str(Path_to_MODEL)):
+        inf('\u2718 Wrong path, use the colab file explorer to copy the path : ','danger', "400px")
+        Path_to_MODEL=input()
+      if os.path.exists(str(Path_to_MODEL)):
+        inf('\u2714 Using the trained model.','success', '200px')
+
+  model=Path_to_MODEL
+
+elif MODEL_LINK != "":
+  gdrv='/content/gdrive/'+mainpth+'/sd/stable-diffusion-'+blasphemy+'/models/Stable-diffusion'
+  tmp="/content"
+  pth=tmp if Use_temp_storage else gdrv
+  %cd $pth
+  clear_output()
+  if not safetensors:
+    modelname="model.ckpt"
+  else:
+    modelname="model.safetensors"
+  !gdown --fuzzy -O $modelname "$MODEL_LINK"
+  if os.path.exists(f'{pth}/{modelname}') and os.path.getsize(f'{pth}/{modelname}') > 1810671599:    
+      model=f'{pth}/{modelname}'
+      clear_output()
+      inf('\u2714 Model downloaded, using the trained model.','success', '350px')
+  else:
+    if Use_temp_storage:
+      !rm $pth/$modelname
+    else:
+      rmv()
+    inf('\u2718 Wrong link, check that the link is valid','danger', "300px")
+
+
+elif Model_Version=="1.5":
+  model=newmdl()
+
+elif Model_Version=="V2.1-512px" or Model_Version=="V2.1-768px":
+  model=V2()
+
+else:
+   model=inpmdl()
+   ----------------------------------------------------------------------------------------------------------------------
+   執行生成
+   from IPython.utils import capture
+import time
+import sys
+import fileinput
+from pyngrok import ngrok, conf
+
+Use_Cloudflare_Tunnel = False #@param {type:"boolean"}
+#@markdown - Offers better gradio responsivity
+
+Ngrok_token = "" #@param {type:"string"}
+
+#@markdown - Input your ngrok token if you want to use ngrok server
+
+User = "" #@param {type:"string"}
+Password= "" #@param {type:"string"}
+#@markdown - Add credentials to your Gradio interface (optional)
+
+auth=f"--gradio-auth {User}:{Password}"
+if User =="" or Password=="":
+  auth=""
+
+
+with capture.capture_output() as cap:
+  %cd /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/modules/
+
+  if Use_Latest_Working_Commit:
+    !wget -q -O paths.py https://github.com/TheLastBen/fast-stable-diffusion/raw/5632d2ef7fffd940976538d270854ec4faf26855/AUTOMATIC1111_files/paths.py
+    !wget -q -O extras.py https://github.com/AUTOMATIC1111/stable-diffusion-$blasphemy/raw/a9eab236d7e8afa4d6205127904a385b2c43bb24/modules/extras.py
+    !wget -q -O sd_models.py https://github.com/AUTOMATIC1111/stable-diffusion-$blasphemy/raw/a9eab236d7e8afa4d6205127904a385b2c43bb24/modules/sd_models.py
+    !wget -q -O /usr/local/lib/python3.9/dist-packages/gradio/blocks.py https://github.com/TheLastBen/fast-stable-diffusion/raw/7ff88eaa1fb4997bacd9845bd487f9a14335d625/AUTOMATIC1111_files/blocks.py 
+  else:
+    !wget -q -O paths.py https://raw.githubusercontent.com/TheLastBen/fast-stable-diffusion/main/AUTOMATIC1111_files/paths.py
+    !wget -q -O extras.py https://raw.githubusercontent.com/AUTOMATIC1111/stable-diffusion-$blasphemy/master/modules/extras.py
+    !wget -q -O sd_models.py https://raw.githubusercontent.com/AUTOMATIC1111/stable-diffusion-$blasphemy/master/modules/sd_models.py
+    !wget -q -O /usr/local/lib/python3.9/dist-packages/gradio/blocks.py https://raw.githubusercontent.com/TheLastBen/fast-stable-diffusion/main/AUTOMATIC1111_files/blocks.py
+  %cd /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/
+
+  !sed -i "s@os.path.splitext(checkpoint_file)@os.path.splitext(checkpoint_file); map_location='cuda'@" /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/modules/sd_models.py
+  !sed -i 's@ui.create_ui().*@ui.create_ui();shared.demo.queue(concurrency_count=999999,status_update_rate=0.1)@' /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/webui.py
+  !sed -i "s@map_location='cpu'@map_location='cuda'@" /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/modules/extras.py
+  !sed -i 's@/content/gdrive/MyDrive/sd/stablediffusion@/content/gdrive/{mainpth}/sd/stablediffusion@' /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/modules/paths.py
+  !sed -i 's@print(\"No module.*@@' /content/gdrive/$mainpth/sd/stablediffusion/ldm/modules/diffusionmodules/model.py
+  !sed -i 's@\"quicksettings\": OptionInfo(.*@"quicksettings": OptionInfo("sd_model_checkpoint,  sd_vae, CLIP_stop_at_last_layers, inpainting_mask_weight, initial_noise_multiplier", "Quicksettings list"),@' /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/modules/shared.py
+
+share=''
+if Ngrok_token!="":
+  ngrok.kill()
+  srv=ngrok.connect(7860, pyngrok_config=conf.PyngrokConfig(auth_token=Ngrok_token) , bind_tls=True).public_url
+
+  for line in fileinput.input('/usr/local/lib/python3.9/dist-packages/gradio/blocks.py', inplace=True):
+    if line.strip().startswith('self.server_name ='):
+        line = f'            self.server_name = "{srv[8:]}"\n'
+    if line.strip().startswith('self.protocol = "https"'):
+        line = '            self.protocol = "https"\n'
+    if line.strip().startswith('if self.local_url.startswith("https") or self.is_colab'):
+        line = ''
+    if line.strip().startswith('else "http"'):
+        line = ''
+    sys.stdout.write(line)
+
+elif Use_Cloudflare_Tunnel:
+  with capture.capture_output() as cap:
+    !pkill cloudflared
+    time.sleep(4)
+    !nohup cloudflared tunnel --url http://localhost:7860 > /content/srv.txt 2>&1 &
+    time.sleep(4)
+    !grep -o 'https[^[:space:]]*\.trycloudflare.com' /content/srv.txt >/content/srvr.txt
+    time.sleep(2)
+    srv= getoutput('cat /content/srvr.txt')
+
+    for line in fileinput.input('/usr/local/lib/python3.9/dist-packages/gradio/blocks.py', inplace=True):
+      if line.strip().startswith('self.server_name ='):
+          line = f'            self.server_name = "{srv[8:]}"\n'
+      if line.strip().startswith('self.protocol = "https"'):
+          line = '            self.protocol = "https"\n'
+      if line.strip().startswith('if self.local_url.startswith("https") or self.is_colab'):
+          line = ''
+      if line.strip().startswith('else "http"'):
+          line = ''
+      sys.stdout.write(line)
+            
+    !rm /content/srv.txt /content/srvr.txt
+
+else:
+  share='--share'
+
+try:
+  model
+  if os.path.isfile(model):
+    !python /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/webui.py $share --api --disable-safe-unpickle --enable-insecure-extension-access --no-download-sd-model --no-half-vae  --ckpt "$model" --opt-sdp-attention $auth --disable-console-progressbars 
+  else:
+    !python /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/webui.py $share --api --disable-safe-unpickle --enable-insecure-extension-access --no-download-sd-model --no-half-vae  --ckpt-dir "$model" --opt-sdp-attention $auth --disable-console-progressbars 
+except:
+   !python /content/gdrive/$mainpth/sd/stable-diffusion-$blasphemy/webui.py $share --api --disable-safe-unpickle --enable-insecure-extension-access --no-download-sd-model --no-half-vae --opt-sdp-attention $auth --disable-console-progressbars
+   #點選生成藍色網址執行
